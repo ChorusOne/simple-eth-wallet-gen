@@ -40,6 +40,27 @@ fn to_hex_string(slice: &[u8], expected_string_size: usize) -> String {
     result
 }
 
+fn print_ecdsa_key_json(wallet: &WalletOutput) {
+    let ecdsa_key_json = serde_json::json!({
+        "address": wallet.address.trim_start_matches("0x"),
+        "crypto": {
+            "cipher": wallet.keystore["crypto"]["cipher"],
+            "cipherparams": {
+                "iv": wallet.keystore["crypto"]["cipherparams"]["iv"]
+            },
+            "ciphertext": wallet.keystore["crypto"]["ciphertext"],
+            "kdf": wallet.keystore["crypto"]["kdf"],
+            "kdfparams": wallet.keystore["crypto"]["kdfparams"],
+            "mac": wallet.keystore["crypto"]["mac"]
+        },
+        "id": wallet.keystore["id"],
+        "version": wallet.keystore["version"]
+    });
+
+    println!("\necdsa.key.json:");
+    println!("{}", serde_json::to_string_pretty(&ecdsa_key_json).unwrap());
+}
+
 pub fn main() {
     let mnemonic = match std::env::args().nth(1) {
         Some(input) => Mnemonic::from_phrase(&input, Language::English).expect("Invalid mnemonic"),
@@ -105,5 +126,7 @@ pub fn main() {
         address: format!("0x{address}"),
     };
 
+    println!("wallet:");
     println!("{}", serde_json::to_string_pretty(&wallet).unwrap());
+    print_ecdsa_key_json(&wallet);
 }
