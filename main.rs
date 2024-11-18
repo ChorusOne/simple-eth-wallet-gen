@@ -61,16 +61,60 @@ fn print_ecdsa_key_json(wallet: &WalletOutput) {
     println!("{}", serde_json::to_string_pretty(&ecdsa_key_json).unwrap());
 }
 
+pub enum DerivationAlgorithm {
+    Bip44Default = 0,
+    MetamaskLegacy = 1,
+}
+
+impl DerivationAlgorithm {
+    pub fn from_input(input: Option<String>) -> Self {
+        match input {
+            Some(input) => {
+                if input == "--bip44" {
+                    DerivationAlgorithm::Bip44Default
+                } else if input == "--legacy" {
+                    DerivationAlgorithm::MetamaskLegacy
+                } else {
+                    panic!("Unknown derivation algorithm: {input}, support only bip44 or legacy")
+                }
+            }
+            None => DerivationAlgorithm::Bip44Default,
+        }
+    }
+}
+
 pub fn main() {
-    let mnemonic = match std::env::args().nth(1) {
-        Some(input) => Mnemonic::from_phrase(&input, Language::English).expect("Invalid mnemonic"),
-        None => create_new_seed(),
+    let (mnemonic, mut algorithm) = match std::env::args().nth(1) {
+        Some(input) => {
+            if ["--bip44", "--legacy"].contains(&input.as_str()) {
+                (
+                    create_new_seed(),
+                    Some(DerivationAlgorithm::from_input(Some(input))),
+                )
+            } else {
+                (
+                    Mnemonic::from_phrase(&input, Language::English).expect("Invalid mnemonic"),
+                    None,
+                )
+            }
+        }
+        None => (create_new_seed(), None),
     };
+
+    if algorithm.is_none() {
+        algorithm = Some(DerivationAlgorithm::from_input(std::env::args().nth(2)));
+    }
 
     let seed = Bip39Seed::new(&mnemonic, "");
 
+    let path = match algorithm.unwrap() {
+        // https://github.com/MyCryptoHQ/MyCrypto/issues/2070
+        DerivationAlgorithm::Bip44Default => "m/44'/60'/0'/0/0",
+        DerivationAlgorithm::MetamaskLegacy => "m/44'/60'/0'/0",
+    };
+
     // Use Metamask derivation path
-    let key = ExtendedPrivKey::derive(seed.as_bytes(), "m/44'/60'/0'/0").unwrap();
+    let key = ExtendedPrivKey::derive(seed.as_bytes(), path).unwrap();
 
     let secret = key.secret();
 

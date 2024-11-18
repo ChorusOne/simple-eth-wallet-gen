@@ -1,7 +1,7 @@
 simple-wallet-gen
 =================
 
-Generate Metamask-compatible Ethereum wallet into standard output, using only memory.
+Generate BIP44 and Metamask compatible Ethereum wallet into standard output, using only memory.
 
 Installation
 ------------
@@ -79,3 +79,6 @@ Metamask interoperability
 -------------------------
 The `secretkey` 64 letter hex value can be used to import wallet into Metamask,
 as described in the [docs](https://support.metamask.io/hc/en-us/articles/360015489331-How-to-import-an-account#h_01G01W07NV7Q94M7P1EBD5BYM4)
+
+To be able to generate compatible wallets from mnemonics generated via Metamask or Ledger
+browser extension legacy algorithm without external wallets, pass `--legacy` parameter.
