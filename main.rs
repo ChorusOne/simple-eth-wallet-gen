@@ -17,6 +17,7 @@ struct WalletOutput {
     keystore: serde_json::Value,
     password: String,
     secretkey: String,
+    publickey: String,
     mnemonic: String,
     address: String,
 }
@@ -82,6 +83,8 @@ impl DerivationAlgorithm {
         }
     }
 }
+
+
 
 pub fn main() {
     let (mnemonic, mut algorithm) = match std::env::args().nth(1) {
@@ -166,6 +169,7 @@ pub fn main() {
         keystore: keystore_data,
         password,
         secretkey: to_hex_string(&secret_key.serialize(), 32),
+        publickey: to_hex_string(&public_key_array, 64),
         mnemonic: mnemonic.to_string(),
         address: format!("0x{address}"),
     };
