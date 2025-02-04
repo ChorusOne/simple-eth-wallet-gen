@@ -1,3 +1,4 @@
+use clap::{App, Arg};
 use std::{fmt::Write, fs::File, io::Read, path::Path};
 
 use bip39::{Language, Mnemonic, MnemonicType, Seed as Bip39Seed};
@@ -87,33 +88,76 @@ impl DerivationAlgorithm {
 
 
 pub fn main() {
-    let (mnemonic, mut algorithm) = match std::env::args().nth(1) {
-        Some(input) => {
-            if ["--bip44", "--legacy"].contains(&input.as_str()) {
-                (
-                    create_new_seed(),
-                    Some(DerivationAlgorithm::from_input(Some(input))),
-                )
-            } else {
-                (
-                    Mnemonic::from_phrase(&input, Language::English).expect("Invalid mnemonic"),
-                    None,
-                )
-            }
-        }
-        None => (create_new_seed(), None),
-    };
+    let matches = App::new("Simple ETH Wallet Generator")
+        .version("1.0")
+        .about("Generates Ethereum wallets")
+        .arg(
+            Arg::new("mnemonic")
+                .help("Use the specified mnemonic phrase")
+                .required(false)
+                .index(1),
+        )
+        .arg(
+            Arg::new("bip44")
+                .long("bip44")
+                .help("Use BIP44 derivation path m/44'/60'/0'/0/0 (default)")
+                .required(false),
+        )
+        .arg(
+            Arg::new("legacy")
+                .long("legacy")
+                .help("Use Metamask legacy derivation path m/44'/60'/0'/0'/0")
+                .required(false),
+        )
+        .arg(
+            Arg::new("bip44-path")
+                .long("bip44-path")
+                .value_name("BIP44_PATH")
+                .help("Sets the BIP44 derivation path")
+                .required(false)
+                .takes_value(true),
+        )
+        .arg(
+            Arg::new("legacy-path")
+                .long("legacy-path")
+                .value_name("LEGACY_PATH")
+                .help("Sets the legacy derivation path")
+                .required(false)
+                .takes_value(true),
+        )
+        .get_matches();
 
-    if algorithm.is_none() {
-        algorithm = Some(DerivationAlgorithm::from_input(std::env::args().nth(2)));
+    let mnemonic = matches.value_of("mnemonic").map_or_else(
+        || create_new_seed(),
+        |phrase| Mnemonic::from_phrase(phrase, Language::English).expect("Invalid mnemonic"),
+    );
+
+    let mut algorithm = DerivationAlgorithm::Bip44Default;
+    if matches.is_present("bip44") || matches.is_present("bip44-path") {
+        algorithm = DerivationAlgorithm::Bip44Default;
+    } else if matches.is_present("legacy") || matches.is_present("legacy-path") {
+        algorithm = DerivationAlgorithm::MetamaskLegacy;
     }
 
     let seed = Bip39Seed::new(&mnemonic, "");
 
-    let path = match algorithm.unwrap() {
-        // https://github.com/MyCryptoHQ/MyCrypto/issues/2070
-        DerivationAlgorithm::Bip44Default => "m/44'/60'/0'/0/0",
-        DerivationAlgorithm::MetamaskLegacy => "m/44'/60'/0'/0",
+    // https://github.com/MyCryptoHQ/MyCrypto/issues/2070
+    let mut bip44_path = String::from("m/44'/60'/0'/0/0");
+    let mut legacy_path = String::from("m/44'/60'/0'/0");
+
+    if let Some(path) = matches.value_of("bip44-path") {
+        bip44_path = path.to_string();
+        println!("bip44_path: {}", bip44_path);
+    }
+
+    if let Some(path) = matches.value_of("legacy-path") {
+        legacy_path = path.to_string();
+        println!("legacy_path: {}", legacy_path);
+    }
+
+    let path = match algorithm {
+        DerivationAlgorithm::Bip44Default => bip44_path.as_str(),
+        DerivationAlgorithm::MetamaskLegacy => legacy_path.as_str(),
     };
 
     // Use Metamask derivation path
